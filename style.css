@@ -1,0 +1,318 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+:root {
+  color-scheme: dark;
+  --bg: #2b1a16;
+  --panel: #523329;
+  --panel2: #704735;
+  --line: #a66d4b;
+  --text: #f6e3b9;
+  --muted: #d0aa7d;
+  --cyan: #a8ba7d;
+  --pink: #d7794d;
+  --purple: #b27962;
+  --gold: #f0c36e;
+  --radius: 3px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 18px 14px;
+  background:
+    linear-gradient(90deg, transparent 0 8%, #ffffff05 8% 8.3%, transparent 8.3% 27%, #0000000a 27% 27.3%, transparent 27.3% 53%, #ffffff04 53% 53.3%, transparent 53.3%),
+    repeating-linear-gradient(90deg, #30201a 0 38px, #38241c 38px 42px, #30201a 42px 78px);
+  color: var(--text);
+  font: 20px/1.15 'VT323', monospace;
+}
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+.app { width: min(1120px, 100%); margin: auto; }
+.hidden { display: none !important; }
+
+.topbar, .player-info, .navigation, .section-heading, .hero-actions,
+.game-hud, .touch-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.topbar { padding: 8px 0 18px; border-bottom: 1px solid var(--line); }
+.brand { color: var(--text); text-decoration: none; font: 12px/1.5 'Press Start 2P', monospace; }
+.brand b { color: var(--pink); }
+.brand-icon { color: var(--gold); }
+.brand-icon { width: 18px; height: 18px; vertical-align: -4px; }
+.player-info { flex-wrap: wrap; justify-content: flex-end; font-size: 17px; font-weight: 700; }
+#player-name { color: var(--muted); }
+.header-profile { width: 40px; height: 40px; flex: 0 0 40px; padding: 2px; border: 1px solid var(--line); border-radius: 3px; background: transparent; }
+.avatar-mark, .profile-avatar-large { display: grid; place-items: center; overflow: hidden; border: 2px solid var(--avatar-color, var(--pink)); border-radius: 3px; background: #35231c; }
+.avatar-mark { width: 32px; height: 32px; }
+.avatar-mark canvas, .profile-avatar-large canvas, .avatar-option canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.wallet, .pill {
+  border: 2px solid #ba8a4c;
+  background: #463024;
+  color: var(--gold);
+  border-radius: 2px;
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+.ruby-wallet, .ruby-pill {
+  border-color: #ff5c8a;
+  background: #463024;
+  color: #ff7aa2;
+}
+.ruby-badge, .ruby-item {
+  border-color: #ff5c8a !important;
+  color: #ff7aa2;
+}
+.car-card.ruby-item {
+  box-shadow: 0 0 0 2px rgba(255, 92, 138, 0.35);
+}
+.navigation {
+  justify-content: flex-start;
+  overflow-x: auto;
+  padding: 14px 0;
+  border-bottom: 2px solid var(--line);
+}
+.nav-btn, .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  padding: 11px 15px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.nav-btn svg, .btn svg, .wallet svg, .pill svg, .text-btn svg,
+.touch-controls svg, .feature-card svg, .metric-label svg, .car-price svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  stroke-width: 2;
+}
+.nav-btn { background: transparent; color: var(--muted); }
+.nav-btn:hover, .nav-btn.active { background: #52372a; color: var(--gold); box-shadow: inset 0 -3px #bd704a; }
+.btn { background: var(--panel2); border-color: var(--line); color: var(--text); }
+.btn:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+.btn.primary {
+  color: #2b1a16;
+  background: var(--gold);
+  border-color: #ffe5a2;
+  box-shadow: 3px 3px #8e5938;
+}
+.btn.secondary { background: #684534; border-color: #ad7953; }
+.btn.small { font-size: 8px; padding: 8px 10px; }
+.btn.full { width: 100%; margin-top: 10px; }
+
+.screen { padding: 25px 0; }
+.hero {
+  display: grid;
+  grid-template-columns: 1.05fr .95fr;
+  min-height: 400px;
+  overflow: hidden;
+  position: relative;
+  border: 4px solid #281711;
+  border-radius: 2px;
+  background:
+    linear-gradient(to bottom, transparent 0 73%, #3b241b 73% 74%, #855036 74% 78%, #392219 78%),
+    repeating-linear-gradient(90deg, #70422e 0 31px, #7b4932 31px 35px, #68402f 35px 67px);
+  box-shadow: 6px 6px #1b100d;
+}
+.hero-copy { padding: clamp(24px, 5vw, 54px); position: relative; z-index: 2; }
+.eyebrow { color: var(--gold); font: 8px/1.7 'Press Start 2P', monospace; }
+h1, h2, h3, p { margin-top: 0; }
+h1 { font: 30px/1.35 'Press Start 2P', monospace; letter-spacing: 0; margin: 22px 0; color: #f8e9c4; }
+h1 span { color: #e79b58; text-shadow: 3px 3px #643824; }
+.hero-copy > p { max-width: 380px; color: #f0d3a2; font-size: 23px; }
+.hero-actions { justify-content: flex-start; flex-wrap: wrap; margin-top: 24px; }
+.mini-stats { display: flex; flex-wrap: wrap; align-items: end; gap: 18px; margin-top: 30px; }
+.mini-stats div, .game-hud div { display: grid; gap: 3px; }
+.mini-stats small, .game-hud small, .result-numbers small { color: var(--muted); font: 8px/1.6 'Press Start 2P', monospace; }
+.mini-stats strong { font: 17px 'Press Start 2P', monospace; }
+.level-stat { display: grid; gap: 5px; min-width: 105px; }
+.level-stat strong { font: 12px 'Press Start 2P', monospace; }
+.level-stat small:last-child { color: var(--muted); font: 6px/1.6 'Press Start 2P', monospace; }
+.xp-track { height: 7px; overflow: hidden; border: 1px solid #a66d4b; background: #33241d; }
+.xp-track span { display: block; width: 0; height: 100%; background: var(--gold); }
+.hero-visual { position: relative; display: grid; place-items: center; min-height: 330px; }
+.hero-car { z-index: 1; width: min(100%, 240px); height: auto; aspect-ratio: 48 / 27; image-rendering: pixelated; filter: drop-shadow(4px 5px #271811); }
+.orbit { display: none; }
+.speed-label, .hero-tag { position: absolute; z-index: 2; background: #392219; border: 2px solid #bc8252; border-radius: 2px; padding: 8px 10px; font: 8px/1.6 'Press Start 2P', monospace; }
+.speed-label { right: 8%; top: 18%; color: var(--muted); }
+.speed-label b { color: var(--gold); font: 14px 'Press Start 2P', monospace; margin-left: 8px; }
+.hero-tag { bottom: 12%; color: #e3a36b; }
+
+.section-heading { margin: 26px 0 17px; }
+.section-heading h2 { font: 17px/1.5 'Press Start 2P', monospace; letter-spacing: 0; margin: 8px 0; }
+.section-heading p { color: var(--muted); margin-bottom: 0; font-size: 19px; }
+.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.feature-card, .panel, .car-card {
+  border: 3px solid #321f18;
+  border-radius: var(--radius);
+  background: #52362a;
+  box-shadow: 4px 4px #1c120e;
+}
+.feature-card { text-align: left; color: var(--text); padding: 22px; }
+.feature-card:hover { border-color: var(--gold); background: #61402e; }
+.feature-card > svg { width: 32px; height: 32px; color: var(--cyan); grid-row: span 2; }
+.feature-card h3 { margin: 13px 0 6px; }
+.feature-card p { color: var(--muted); font-size: 18px; margin: 0; }
+.notice { color: var(--muted); font-size: 17px; margin-top: 16px; }
+.muted { color: var(--muted); font-size: 17px; }
+.center { text-align: center; }
+
+.world-picker { margin: 28px 0; }
+.world-picker .section-heading { margin: 0 0 12px; }
+.world-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.world-card { display: grid; grid-template-columns: 25px 1fr; align-items: center; gap: 5px 9px; min-width: 0; padding: 12px; border: 2px solid #704735; border-radius: 2px; color: var(--text); background: #52362a; box-shadow: 3px 3px #1c120e; text-align: left; }
+.world-card:hover, .world-card.selected { border-color: var(--gold); background: #684630; }
+.world-card:disabled { filter: saturate(.5); opacity: .55; cursor: not-allowed; }
+.world-card svg { grid-row: span 2; width: 22px; height: 22px; color: var(--gold); }
+.world-card strong { font: 7px/1.6 'Press Start 2P', monospace; }
+.world-card span { color: var(--muted); font-size: 16px; }
+
+.car-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.car-card { padding: 16px; min-width: 0; }
+.car-card.selected { border-color: var(--gold); box-shadow: inset 0 0 0 2px #e5bc7040, 4px 4px #1c120e; }
+.car-preview { height: 115px; border: 2px solid #34221b; border-radius: 2px; display: grid; place-items: center; background: #39271f; margin-bottom: 15px; overflow: hidden; }
+.car-preview-canvas { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.car-type { display: inline-block; margin-bottom: 4px; color: var(--cyan); font: 8px/1.6 'Press Start 2P', monospace; text-transform: uppercase; }
+.car-card h3 { margin-bottom: 5px; }
+.car-card p { color: var(--muted); font-size: 17px; min-height: 36px; }
+.car-special { display: grid; gap: 4px; min-height: 54px; margin: 10px 0; padding: 8px; border-left: 3px solid var(--gold); background: #463126; color: var(--text); font-size: 16px; }
+.car-special strong { display: flex; align-items: center; gap: 6px; color: var(--gold); font: 7px/1.6 'Press Start 2P', monospace; }
+.car-special svg { width: 13px; height: 13px; flex: 0 0 auto; }
+.car-special span { color: var(--muted); }
+.car-price { color: var(--gold); font-weight: 800; margin: 10px 0; }
+.car-metrics { display: grid; gap: 8px; margin: 14px 0; }
+.metric { display: grid; grid-template-columns: 75px 1fr 25px; align-items: center; gap: 7px; font-size: 10px; color: var(--muted); }
+.metric-label { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.metric-label svg { width: 13px; height: 13px; }
+.meter { height: 7px; background: #33241d; border: 1px solid #a26b47; border-radius: 0; overflow: hidden; }
+.meter span { display: block; height: 100%; background: #a8ba7d; border-radius: 0; }
+.car-card .btn { width: 100%; font-size: 11px; }
+
+.garage-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; align-items: start; }
+.panel { padding: 22px; min-width: 0; }
+.car-display { text-align: center; }
+.garage-car { display: block; width: 100%; height: auto; aspect-ratio: 5 / 3; margin: 15px 0 10px; border: 2px solid #34221b; border-radius: 2px; background: #39271f; image-rendering: pixelated; }
+.car-display .car-special { text-align: left; }
+.paint-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cosmetic-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.paint-option { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 2px solid #80583e; border-radius: 2px; color: var(--text); background: #463126; text-align: left; }
+.paint-option.selected { border-color: var(--gold); background: #60432d; }
+.paint-option:disabled { filter: saturate(.55); opacity: .55; }
+.paint-swatch { width: 26px; height: 26px; flex: 0 0 26px; border: 2px solid #2b1a16; background: var(--paint-color); image-rendering: pixelated; }
+.paint-option-label { display: grid; gap: 4px; min-width: 0; }
+.paint-option-label strong { font: 6px/1.5 'Press Start 2P', monospace; overflow-wrap: anywhere; }
+.paint-option-label small { color: var(--muted); font-size: 15px; }
+.custom-paint-picker { display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: center; gap: 8px; }
+.custom-paint-picker input[type="color"] { width: 70px; height: 42px; padding: 3px; }
+.custom-paint-picker .btn { min-height: 42px; padding: 8px; font-size: 7px; }
+.car-display h3 { margin-bottom: 4px; }
+.car-display > p { color: var(--muted); font-size: 12px; }
+label { display: block; color: var(--muted); font-size: 11px; font-weight: 800; margin: 15px 0 6px; }
+input, select { width: 100%; border: 2px solid #a66d4b; border-radius: 2px; padding: 11px; color: var(--text); background: #35231c; }
+.stat-bars { text-align: left; display: grid; gap: 11px; margin: 20px 0; }
+.upgrade-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--line); align-items: center; }
+.upgrade-row h4 { margin: 0 0 4px; font-size: 13px; }
+.upgrade-row p { color: var(--muted); margin: 0; font-size: 11px; }
+.upgrade-row .btn { font-size: 10px; padding: 9px; }
+.tuning-panel { grid-column: 2; }
+.profile-layout { display: grid; grid-template-columns: minmax(240px, .75fr) minmax(0, 1.25fr); gap: 15px; align-items: start; }
+.profile-guest { max-width: 560px; }
+.profile-guest h3 { margin: 12px 0 8px; }
+.profile-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 16px; margin-top: 12px; }
+.profile-stat { display: grid; gap: 7px; min-width: 0; padding: 14px 0; border-bottom: 1px solid #a66d4b70; }
+.profile-stat small { color: var(--muted); font: 7px/1.6 'Press Start 2P', monospace; }
+.profile-stat strong { font: 12px/1.4 'Press Start 2P', monospace; overflow-wrap: anywhere; }
+.profile-account h3 { margin: 12px 0 5px; }
+.profile-account > .muted { overflow-wrap: anywhere; }
+.profile-account .notice { min-height: 1.2em; }
+.profile-avatar-editor { display: grid; justify-items: start; }
+.profile-avatar-large { width: 68px; height: 68px; margin: 12px 0 4px; }
+.profile-avatar-options { display: grid; grid-template-columns: repeat(6, 40px); gap: 7px; }
+.avatar-option { display: grid; place-items: center; width: 40px; height: 40px; padding: 2px; border: 1px solid var(--line); border-radius: 3px; background: #35231c; }
+.avatar-option.selected { border: 2px solid var(--gold); }
+.profile-avatar-colors { display: flex; gap: 8px; flex-wrap: wrap; }
+.avatar-color-option { width: 28px; height: 28px; padding: 0; border: 2px solid #2b1a16; border-radius: 50%; background: var(--avatar-color); }
+.avatar-color-option.selected { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.leader-head, .leader-row { display: grid; grid-template-columns: 45px 1fr 120px; gap: 12px; align-items: center; padding: 13px 8px; }
+.leader-head { color: var(--gold); font: 8px/1.6 'Press Start 2P', monospace; border-bottom: 2px solid var(--line); }
+.leader-row { border-bottom: 1px solid #a66d4b70; }
+.leader-row:last-child { border: 0; }
+.leader-row strong:last-child { text-align: right; color: var(--gold); }
+.rank-number { color: var(--gold); font-weight: 900; }
+.auth-panel { max-width: 450px; margin: 10px auto; }
+.auth-panel h2 { font: 16px/1.5 'Press Start 2P', monospace; margin: 10px 0; }
+.text-btn { border: 0; background: transparent; color: var(--gold); padding: 12px 0; }
+.auth-panel .text-btn { display: block; }
+.game-hud { justify-content: space-around; max-width: 450px; margin: 0 auto 13px; }
+ .game-hud strong { font: 16px 'Press Start 2P', monospace; }
+.sound-button { width: 36px; padding: 8px; }
+.special-status { min-height: 1.2em; margin: 8px 0 2px; color: var(--gold); font-size: 17px; text-align: center; }
+.road-wrap { width: min(100%, 360px); position: relative; overflow: hidden; margin: auto; border: 4px solid #36231b; border-radius: 2px; box-shadow: 5px 5px #1c110d; }
+canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.overlay { position: absolute; inset: 0; background: #291a15ed; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.overlay h2, .result-panel h2 { font: 16px/1.5 'Press Start 2P', monospace; }
+.touch-controls { justify-content: center; margin: 15px auto; }
+.touch-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 140px; height: 48px; color: var(--text); background: #694431; border: 2px solid #a66d4b; border-radius: 2px; box-shadow: 3px 3px #1c120e; font: 8px 'Press Start 2P', monospace; touch-action: none; }
+.result-panel { max-width: 460px; text-align: center; margin: auto; }
+.result-icon { color: var(--pink); }
+.result-icon svg { width: 58px; height: 58px; stroke-width: 1.5; }
+.result-panel h2 { font-size: 16px; }
+.result-numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+.result-numbers > div { background: #39271f; padding: 18px; border: 2px solid #704735; border-radius: 2px; }
+.result-numbers strong { display: block; font: 16px 'Press Start 2P', monospace; }
+footer { text-align: center; color: var(--muted); font: 8px/1.8 'Press Start 2P', monospace; letter-spacing: 0; padding: 22px 0; }
+footer span { color: var(--pink); }
+
+@media (max-width: 760px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero-visual { min-height: 220px; }
+  .hero-car { width: min(100%, 220px); height: auto; }
+  .orbit { width: 210px; height: 210px; }
+  .orbit-two { width: 160px; height: 160px; }
+  .feature-grid { grid-template-columns: 1fr; }
+  .feature-card { display: grid; grid-template-columns: 45px 1fr; column-gap: 12px; align-items: center; }
+  .feature-card > svg { grid-row: span 2; }
+  .feature-card h3 { margin: 0; }
+  .world-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .car-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .garage-layout { grid-template-columns: 1fr; }
+  .tuning-panel { grid-column: auto; }
+  .profile-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 440px) {
+  body { padding: 10px; }
+  .topbar { align-items: flex-start; }
+  .brand { font-size: 14px; }
+  .player-info { gap: 6px; }
+  #player-name { display: none; }
+  .navigation { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; overflow: visible; }
+  .nav-btn { min-width: 0; font-size: 0; padding: 9px 4px; }
+  .nav-btn svg { width: 19px; height: 19px; }
+  .hero-copy { padding: 25px 20px; }
+  h1 { font-size: 20px; }
+  .mini-stats { gap: 17px; }
+  .mini-stats { column-gap: 13px; row-gap: 16px; }
+  .mini-stats strong { font-size: 18px; }
+  .car-grid { grid-template-columns: 1fr; }
+  .paint-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .car-preview { height: 95px; }
+  .section-heading { align-items: flex-start; }
+  .leader-head, .leader-row { grid-template-columns: 28px 1fr 85px; gap: 6px; font-size: 11px; }
+}
