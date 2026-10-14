@@ -1,0 +1,384 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2b1a16">
+  <title>My road | Pixel Racing</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.js" defer></script>
+  <script src="firebase-config.js"></script>
+  <script src="script.js" defer></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.js" defer></script>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <a href="#" class="brand" data-screen="home">
+        <i class="brand-icon" data-lucide="car-front" aria-hidden="true"></i> MY <b>ROAD</b>
+      </a>
+      <div class="player-info">
+        <span id="player-name">GASTSPELER</span>
+        <span class="wallet"><i data-lucide="coins" aria-hidden="true"></i> <strong id="coin-total">0</strong></span>
+        <span class="wallet ruby-wallet"><i data-lucide="gem" aria-hidden="true"></i> <strong id="ruby-total">0</strong></span>
+        <button id="header-profile" class="header-profile" data-screen="profile" type="button" aria-label="Profiel openen" title="Profiel">
+          <span id="header-avatar" class="avatar-mark" aria-hidden="true"><i data-lucide="car-front"></i></span>
+        </button>
+      </div>
+    </header>
+
+    <nav class="navigation">
+      <button data-screen="home" class="nav-btn active"><i data-lucide="house" aria-hidden="true"></i> Home</button>
+      <button data-screen="shop" class="nav-btn"><i data-lucide="store" aria-hidden="true"></i> Winkel</button>
+      <button data-screen="garage" class="nav-btn"><i data-lucide="wrench" aria-hidden="true"></i> Garage</button>
+      <button data-screen="leaderboard" class="nav-btn"><i data-lucide="trophy" aria-hidden="true"></i> Wereldranglijst</button>
+      <button data-screen="profile" class="nav-btn"><i data-lucide="user-round" aria-hidden="true"></i> Profiel</button>
+    </nav>
+
+    <section id="home-screen" class="screen">
+      <div class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">THE FIRST ROAD · SEIZOEN 01</span>
+          <h1>Race<br><span>Fast</span></h1>
+          <p>Rijd over rustige landweggetjes. Verzamel munten en maak je eigen garage.</p>
+          <div class="hero-actions">
+            <button id="play-button" class="btn primary"><i data-lucide="play" aria-hidden="true"></i> START RACE</button>
+            <button class="btn secondary" data-screen="garage"><i data-lucide="wrench" aria-hidden="true"></i> MIJN GARAGE</button>
+          </div>
+          <div class="mini-stats">
+            <div><small>BESTE SCORE</small><strong id="best-score">0</strong></div>
+            <div><small>AUTO'S</small><strong id="owned-count">1</strong></div>
+            <div><small>RACEKLASSE</small><strong id="player-rank">ROOKIE</strong></div>
+            <div class="level-stat"><small>LEVEL <strong id="player-level">1</strong></small><div class="xp-track"><span id="level-progress-fill"></span></div><small id="level-xp">0 / 100 XP</small></div>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="orbit orbit-one"></div>
+          <div class="orbit orbit-two"></div>
+          <canvas class="hero-car" id="hero-car" width="240" height="145" aria-hidden="true"></canvas>
+          <div class="speed-label">MAX SPEED <b id="hero-speed">180</b></div>
+          <span class="hero-tag">COUNTRY ROAD // TAKE IT EASY</span>
+        </div>
+      </div>
+
+    <section class="world-picker" aria-labelledby="world-heading">
+  <div class="section-heading">
+    <div>
+      <span class="eyebrow">KIES JE ROUTE</span>
+      <h2 id="world-heading">Werelden</h2>
+    </div>
+  </div>
+
+  <div class="world-grid">
+    <button class="world-card selected" type="button" data-world="country" aria-pressed="true">
+      <i data-lucide="trees" aria-hidden="true"></i>
+      <strong>Landweg</strong>
+      <span>Rustig door het bos</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="snow" aria-pressed="false">
+      <i data-lucide="snowflake" aria-hidden="true"></i>
+      <strong>Sneeuwpas</strong>
+      <span>Gladde winterwegen</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="highway" aria-pressed="false">
+      <i data-lucide="route" aria-hidden="true"></i>
+      <strong>Drukke snelweg</strong>
+      <span>Meer verkeer, hogere snelheid</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="mountain" aria-pressed="false">
+      <i data-lucide="mountain" aria-hidden="true"></i>
+      <strong>Bergpas</strong>
+      <span>Rotsen en dennenbos</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="desert" aria-pressed="false">
+      <i data-lucide="sun" aria-hidden="true"></i>
+      <strong>Woestijn</strong>
+      <span>Hete zandduinen en cactussen</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="city" aria-pressed="false">
+      <i data-lucide="building-2" aria-hidden="true"></i>
+      <strong>Nachtstad</strong>
+      <span>Neonlichten en druk verkeer</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="tropical" aria-pressed="false">
+      <i data-lucide="palmtree" aria-hidden="true"></i>
+      <strong>Tropisch eiland</strong>
+      <span>Palmbomen en zonnige wegen</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="volcano" aria-pressed="false">
+      <i data-lucide="flame" aria-hidden="true"></i>
+      <strong>Vulkaanzone</strong>
+      <span>Lavastromen en donkere rotsen</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="rain" aria-pressed="false">
+      <i data-lucide="cloud-rain" aria-hidden="true"></i>
+      <strong>Regenroute</strong>
+      <span>Natte wegen en donkere wolken</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="autumn" aria-pressed="false">
+      <i data-lucide="leaf" aria-hidden="true"></i>
+      <strong>Herfstbos</strong>
+      <span>Gouden bladeren en kronkelwegen</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="coast" aria-pressed="false">
+      <i data-lucide="waves" aria-hidden="true"></i>
+      <strong>Kustroute</strong>
+      <span>Bochtige wegen langs de oceaan</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="cyberpunk" aria-pressed="false">
+      <i data-lucide="zap" aria-hidden="true"></i>
+      <strong>Cyberpunk</strong>
+      <span>Futuristische neonwegen</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="sunset" aria-pressed="false">
+      <i data-lucide="sunset" aria-hidden="true"></i>
+      <strong>Zonsondergang</strong>
+      <span>Warme kleuren en landelijke wegen</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="space" aria-pressed="false">
+      <i data-lucide="orbit" aria-hidden="true"></i>
+      <strong>Ruimtewereld</strong>
+      <span>Race tussen sterren en planeten</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="haunted" aria-pressed="false">
+      <i data-lucide="ghost" aria-hidden="true"></i>
+      <strong>Spookbos</strong>
+      <span>Mistige wegen en oude bomen</span>
+    </button>
+
+    <button class="world-card" type="button" data-world="racetrack" aria-pressed="false">
+      <i data-lucide="flag" aria-hidden="true"></i>
+      <strong>Racecircuit</strong>
+      <span>Hoge snelheden en uitdagend verkeer</span>
+    </button>
+  </div>
+</section>
+
+      <div class="section-heading">
+        <div><span class="eyebrow">KIES JE MISSIE</span><h2>Jouw volgende stap</h2></div>
+      </div>
+      <div class="feature-grid">
+        <button class="feature-card" data-screen="shop">
+          <i data-lucide="car-front" aria-hidden="true"></i><h3>Autowinkel</h3><p>Ontgrendel auto's met unieke eigenschappen.</p>
+        </button>
+        <button class="feature-card" data-screen="garage">
+          <i data-lucide="settings-2" aria-hidden="true"></i><h3>Upgrade & tune</h3><p>Verbeter motor, handling en muntbonus.</p>
+        </button>
+        <button class="feature-card" data-screen="leaderboard">
+          <i data-lucide="trophy" aria-hidden="true"></i><h3>Wereldranglijst</h3><p>Vergelijk je beste score met andere racers.</p>
+        </button>
+      </div>
+      <p class="notice" id="connection-status">Offline modus: log in om je voortgang online op te slaan.</p>
+    </section>
+
+    <section id="shop-screen" class="screen hidden">
+      <div class="section-heading">
+        <div><span class="eyebrow">DEALER // SUNSET GARAGE</span><h2>Autowinkel</h2>
+        <p>Elke auto heeft eigen snelheid, handling en muntbonus.</p></div>
+        <span class="pill"><i data-lucide="coins" aria-hidden="true"></i> <span id="shop-coins">0</span></span>
+        <span class="pill ruby-pill"><i data-lucide="gem" aria-hidden="true"></i> <span id="shop-rubies">0</span></span>
+      </div>
+      <div id="car-list" class="car-grid"></div>
+    </section>
+
+    <section id="garage-screen" class="screen hidden">
+      <div class="section-heading">
+        <div><span class="eyebrow">JOUW PERSOONLIJKE WERKPLAATS</span><h2>Garage & tuning</h2>
+        <p>Upgrade je onderdelen en stel je eigen look samen.</p></div>
+      </div>
+
+      <div class="garage-layout">
+        <article class="panel car-display">
+          <span class="eyebrow">GEMONTEERDE AUTO</span>
+          <canvas id="garage-car" class="garage-car" width="300" height="180" aria-hidden="true"></canvas>
+          <span id="garage-car-type" class="car-type">Sedan</span>
+          <h3 id="garage-car-name">Street Blue</h3>
+          <p id="garage-car-description">Jouw eerste racewagen.</p>
+          <div id="garage-car-special" class="car-special"></div>
+          <div class="stat-bars" id="car-stats"></div>
+          <label for="garage-select">Auto selecteren</label>
+          <select id="garage-select"></select>
+        </article>
+
+        <article class="panel upgrade-panel">
+          <span class="eyebrow">PRESTATIES</span>
+          <h3>Onderdeel-upgrades</h3>
+          <div id="upgrade-list"></div>
+          <p class="muted">Upgrades kosten munten en hebben maximaal niveau 5.</p>
+        </article>
+
+        <article class="panel tuning-panel">
+          <span class="eyebrow">VISUELE PERSONALISATIE</span>
+          <h3>Jouw stijl</h3>
+          <label for="paint-select">Carrosseriekleur</label>
+          <input id="paint-select" type="hidden" value="#32b8ff">
+          <div id="paint-options" class="paint-options" role="group" aria-label="Lak-kleuren"></div>
+          <label for="paint-picker">Eigen kleur kiezen</label>
+          <div class="custom-paint-picker">
+            <input id="paint-picker" type="color" value="#32b8ff">
+            <button id="buy-custom-paint" class="btn secondary" type="button">KOOP KLEUR · 250</button>
+          </div>
+          <label>Wraps</label>
+          <div id="wrap-options" class="cosmetic-options" role="group" aria-label="Wraps"></div>
+          <label>Velgkleur</label>
+          <div id="rim-options" class="cosmetic-options" role="group" aria-label="Velgkleuren"></div>
+          <label>Spoiler</label>
+          <div id="spoiler-options" class="cosmetic-options" role="group" aria-label="Spoilers"></div>
+          <button id="save-tuning" class="btn primary full">TUNING OPSLAAN</button>
+        </article>
+      </div>
+    </section>
+
+    <section id="leaderboard-screen" class="screen hidden">
+      <div class="section-heading">
+        <div><span class="eyebrow">RACERS OVER DE HELE WERELD</span><h2>Leaderboard</h2>
+        <p id="leaderboard-description">De racers met de hoogste score staan bovenaan.</p></div>
+        <button id="refresh-leaderboard" class="btn secondary"><i data-lucide="refresh-cw" aria-hidden="true"></i> VERNIEUW</button>
+      </div>
+      <div class="leaderboard-tabs" role="tablist" aria-label="Ranglijstcategorie">
+        <button class="leaderboard-tab active" type="button" role="tab" aria-selected="true" data-leaderboard="score">Hoogste score</button>
+        <button class="leaderboard-tab" type="button" role="tab" aria-selected="false" data-leaderboard="coins">Meeste munten</button>
+        <button class="leaderboard-tab" type="button" role="tab" aria-selected="false" data-leaderboard="collisions">Meeste botsingen</button>
+      </div>
+      <div class="panel">
+        <div class="leader-head"><span>#</span><span>RACER</span><span id="leaderboard-value-heading">BESTE SCORE</span></div>
+        <div id="leaderboard-list"><p class="muted">Leaderboard laden...</p></div>
+      </div>
+      <p class="notice">Alleen scores van ingelogde spelers die door de server zijn geaccepteerd, horen in deze lijst.</p>
+    </section>
+
+    <section id="profile-screen" class="screen hidden">
+      <div class="section-heading">
+        <div><span class="eyebrow">RACER ACCOUNT</span><h2>Mijn profiel</h2></div>
+      </div>
+      <div id="profile-guest" class="panel profile-guest hidden">
+        <span class="eyebrow">JOUW VOORTGANG</span>
+        <h3>Log in om je profiel te bekijken</h3>
+        <p class="muted">Bewaar je racenaam, auto's, munten en scores op je account.</p>
+        <button id="profile-login" class="btn primary"><i data-lucide="log-in" aria-hidden="true"></i> INLOGGEN OF REGISTREREN</button>
+      </div>
+      <div id="profile-dashboard" class="profile-layout hidden">
+        <article class="panel profile-account">
+          <span class="eyebrow">ACCOUNT</span>
+          <h3 id="profile-name">Racer</h3>
+          <p id="profile-email" class="muted"></p>
+          <div class="profile-avatar-editor">
+            <div id="profile-avatar-preview" class="profile-avatar-large" aria-label="Avatarvoorbeeld"></div>
+            <label>Avatar</label>
+            <div id="profile-avatar-options" class="profile-avatar-options" role="group" aria-label="Kies een avatar"></div>
+            <label>Kleur</label>
+            <div id="profile-avatar-colors" class="profile-avatar-colors" role="group" aria-label="Kies een avatarkleur"></div>
+          </div>
+          <form id="profile-form">
+            <label for="profile-username">Racenaam</label>
+            <input id="profile-username" maxlength="20" autocomplete="nickname" required>
+            <button class="btn primary full" type="submit"><i data-lucide="save" aria-hidden="true"></i> PROFIEL OPSLAAN</button>
+            <p id="profile-status" class="notice" role="status"></p>
+          </form>
+          <button id="profile-logout" class="btn secondary full" type="button"><i data-lucide="log-out" aria-hidden="true"></i> UITLOGGEN</button>
+        </article>
+        <article class="panel">
+          <span class="eyebrow">RACE STATISTIEKEN</span>
+          <div class="profile-stats">
+            <div class="profile-stat"><small>BESTE SCORE</small><strong id="profile-best">0</strong></div>
+            <div class="profile-stat"><small>BOTSINGEN</small><strong id="profile-collisions">0</strong></div>
+            <div class="profile-stat"><small>LEVEL</small><strong id="profile-level">1</strong></div>
+            <div class="profile-stat"><small>ERVARING</small><strong id="profile-xp">0 / 100 XP</strong></div>
+            <div class="profile-stat"><small>MUNTEN</small><strong id="profile-coins">0</strong></div>
+            <div class="profile-stat"><small>ROBIJNEN</small><strong id="profile-rubies">0</strong></div>
+            <div class="profile-stat"><small>RACEKLASSE</small><strong id="profile-rank">ROOKIE</strong></div>
+            <div class="profile-stat"><small>AUTO'S</small><strong id="profile-cars">1</strong></div>
+            <div class="profile-stat"><small>ACTIEVE AUTO</small><strong id="profile-car">-</strong></div>
+            <div class="profile-stat"><small>WERELD</small><strong id="profile-world">-</strong></div>
+            <div class="profile-stat"><small>MUNTMULTIPLIER</small><strong id="profile-multiplier">1x</strong></div>
+            <div class="profile-stat"><small>UPGRADELEVELS</small><strong id="profile-upgrades">0</strong></div>
+            <div class="profile-stat"><small>VERF / COSMETICA</small><strong id="profile-items">0 / 0</strong></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="auth-screen" class="screen hidden">
+      <div class="auth-panel panel">
+        <span class="eyebrow">JOUW RACE-ID</span>
+        <h2 id="auth-title">Word een racer</h2>
+        <p class="muted">Bewaar je auto's, munten en scores online.</p>
+        <form id="auth-form">
+          <label for="auth-email">E-mailadres</label>
+          <input id="auth-email" type="email" autocomplete="email" required>
+          <label for="auth-password">Wachtwoord</label>
+          <input id="auth-password" type="password" minlength="8"
+                 autocomplete="current-password" required>
+          <label for="auth-username">Racenaam (bij registratie)</label>
+          <input id="auth-username" maxlength="20" placeholder="CozyRacer">
+          <button id="auth-submit" class="btn primary full" type="submit">INLOGGEN</button>
+        </form>
+        <button id="auth-switch" class="text-btn">Nog geen account? Registreren</button>
+        <button class="text-btn" data-screen="home"><i data-lucide="arrow-left" aria-hidden="true"></i> Terug naar start</button>
+        <p id="auth-message" role="status" class="notice"></p>
+      </div>
+    </section>
+
+    <section id="game-screen" class="screen hidden">
+      <div class="game-hud">
+        <div><small>SCORE</small><strong id="score">0</strong></div>
+        <div><small>DEZE RIT</small><strong><i data-lucide="coins" aria-hidden="true"></i> <span id="run-coins">0</span></strong></div>
+        <button id="sound-button" class="btn small secondary sound-button" type="button" aria-label="Motorgeluid uitzetten" title="Motorgeluid aan of uit"><i data-lucide="volume-2" aria-hidden="true"></i></button>
+        <button id="pause-button" class="btn small secondary"><i data-lucide="pause" aria-hidden="true"></i> Pauze</button>
+      </div>
+      <div class="road-wrap">
+        <canvas id="game-canvas" width="360" height="600"
+                aria-label="Car Dodge racespel"></canvas>
+        <div id="pause-overlay" class="overlay hidden">
+          <h2>Gepauzeerd</h2>
+          <button id="resume-button" class="btn primary"><i data-lucide="play" aria-hidden="true"></i> Verder</button>
+          <button id="quit-button" class="btn secondary">Hoofdmenu</button>
+        </div>
+      </div>
+      <div class="touch-controls">
+        <button id="left-button"><i data-lucide="arrow-left" aria-hidden="true"></i> LINKS</button>
+        <button id="right-button">RECHTS <i data-lucide="arrow-right" aria-hidden="true"></i></button>
+      </div>
+      <p id="special-status" class="special-status" role="status"></p>
+      <p class="muted center">Gebruik ← → of A / D om het verkeer te ontwijken.</p>
+    </section>
+
+    <section id="over-screen" class="screen hidden">
+      <div class="panel result-panel">
+        <div class="result-icon"><i data-lucide="triangle-alert" aria-hidden="true"></i></div>
+        <span class="eyebrow">RIT BEËINDIGD</span>
+        <h2>Game over!</h2>
+        <div class="result-numbers">
+          <div><small>SCORE</small><strong id="final-score">0</strong></div>
+          <div><small>MUNTEN</small><strong id="final-coins">0</strong></div>
+        </div>
+        <p id="submission-status" class="notice">Rit verwerken...</p>
+        <button id="retry-button" class="btn primary full"><i data-lucide="refresh-cw" aria-hidden="true"></i> OPNIEUW SPELEN</button>
+        <button class="btn secondary full" data-screen="garage"><i data-lucide="wrench" aria-hidden="true"></i> NAAR GARAGE</button>
+        <button class="text-btn" data-screen="home">Terug naar startmenu</button>
+      </div>
+    </section>
+
+    <footer>My road <span>◆</span> TAKE THE SCENIC ROUTE</footer>
+  </main>
+</body>
+</html>
