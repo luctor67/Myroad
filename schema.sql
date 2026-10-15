@@ -87,7 +87,31 @@ set search_path = ''
 as $$
 declare
   chosen_name text;
+create or replace function public.update_my_profile(
+  p_username text,
+  p_avatar text,
+  p_avatar_color text
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
 begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if nullif(btrim(p_username), '') is null or char_length(btrim(p_username)) > 20
+      or p_avatar not in ('car-front','trophy','zap','shield','rocket','star')
+      or p_avatar_color not in ('#d8838a','#62e6a7','#ffc857','#58a6c7','#b18cff','#ff426d') then
+    raise exception 'Invalid profile';
+  end if;
+
+  update public.profiles
+  set username = btrim(p_username), avatar = p_avatar, avatar_color = p_avatar_color
+  where id = auth.uid();
+
+  if not found then raise exception 'Profile not found'; end if;
+end;
+$$;
   chosen_name := coalesce(
     nullif(left(trim(new.raw_user_meta_data ->> 'username'), 20), ''),
     'Racer'
@@ -131,7 +155,35 @@ as $$
 declare
   current_coins bigint;
   owned_cars jsonb;
+create or replace function public.buy_my_paint(
+  p_paint_id text,
+  p_price integer
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
 begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  perform public.buy_paint(auth.uid(), p_paint_id, p_price);
+end;
+$$;
+
+create or replace function public.buy_my_ruby_paint(
+  p_paint_id text,
+  p_price integer
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  perform public.buy_ruby_paint(auth.uid(), p_paint_id, p_price);
+end;
+$$;
   if p_car_id not in (
     'marmalade','bloom','violet','bluebolt','ivory','sheriff',
     'car8','car9','car10','car11','car12','car13','car14',
@@ -173,7 +225,28 @@ declare
   current_coins bigint;
   unlocked_paints jsonb;
   expected_price integer;
+create or replace function public.save_my_tuning(
+  p_car_id text,
+  p_tuning jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
 begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  perform public.save_tuning(auth.uid(), p_car_id, p_tuning);
+end;
+$$;
+  revoke all on function public.update_my_profile(text,text,text) from public, anon, authenticated;
+  revoke all on function public.buy_my_paint(text,integer) from public, anon, authenticated;
+  revoke all on function public.buy_my_ruby_paint(text,integer) from public, anon, authenticated;
+  revoke all on function public.save_my_tuning(text,jsonb) from public, anon, authenticated;
+  grant execute on function public.update_my_profile(text,text,text) to authenticated;
+  grant execute on function public.buy_my_paint(text,integer) to authenticated;
+  grant execute on function public.buy_my_ruby_paint(text,integer) to authenticated;
+  grant execute on function public.save_my_tuning(text,jsonb) to authenticated;
   expected_price := case p_paint_id
     when 'honey' then 150
     when 'terracotta' then 250
@@ -419,41 +492,14 @@ begin
   next_multiplier := p.coin_multiplier;
   updated_owned := p.owned;
 
-  while remaining_xp >= next_level * 100 loop
-    remaining_xp := remaining_xp - next_level * 100;
+  while remaining_xp >= 2500 loop
+    remaining_xp := remaining_xp - 2500;
     next_level := next_level + 1;
-    if next_level % 5 <> 0 then continue; end if;
-
-    reward_car := null;
-    if next_level = 5 or (next_level - 5) % 20 = 0 then
-      next_multiplier := greatest(2, next_multiplier * 2);
-      reward_text := concat_ws(' · ', nullif(reward_text,''), 'Dubbele muntbonus');
-    elsif next_level = 10 then
-      reward_car := 'bloom';
-    elsif next_level = 15 then
-      bonus_coins := bonus_coins + 1500;
-      reward_text := concat_ws(' · ', nullif(reward_text,''), '1.500 bonusmunten');
-    elsif next_level = 20 then
-      reward_car := 'sheriff';
-    else
-      bonus_coins := bonus_coins + next_level * 100;
-      reward_text := concat_ws(' · ', nullif(reward_text,''), (next_level * 100)::text || ' bonusmunten');
-    end if;
-
-    -- Robijn is zeldzaam: één per level-drempel van 10 (10, 20, 30, ...).
-    if next_level % 10 = 0 then
-      bonus_rubies := bonus_rubies + 1;
-      reward_text := concat_ws(' · ', nullif(reward_text,''), '1 robijn');
-    end if;
-
-    if reward_car is not null then
-      if updated_owned @> jsonb_build_array(reward_car) then
-        bonus_coins := bonus_coins + case reward_car when 'cedar' then 2150 else 5750 end;
-        reward_text := concat_ws(' · ', nullif(reward_text,''), 'Bonusmunten in plaats van dubbele auto');
-      else
-        updated_owned := updated_owned || jsonb_build_array(reward_car);
-        reward_text := concat_ws(' · ', nullif(reward_text,''), 'Nieuwe auto vrijgespeeld');
-      end if;
+    bonus_rubies := bonus_rubies + 1;
+    reward_text := concat_ws(' · ', nullif(reward_text,''), 'Level ' || next_level::text || ': 1 robijn');
+    if next_level % 5 = 0 then
+      bonus_rubies := bonus_rubies + 5;
+      reward_text := concat_ws(' · ', nullif(reward_text,''), '5 bonusrobijnen');
     end if;
   end loop;
 
@@ -664,6 +710,7 @@ declare
   elapsed_seconds numeric;
   max_score integer;
   max_coins integer;
+  max_coin_multiplier numeric;
   progress_result jsonb;
   awarded_rubies integer;
   max_rubies integer;
@@ -687,20 +734,13 @@ begin
   -- Dit is een plausibiliteitslimiet, geen bewijs dat de speler eerlijk speelde.
   max_score := floor(elapsed_seconds * 13);
 
-  -- Ruime limiet voor muntbonussen, zonder onbeperkte beloningen.
-  max_coins := ceil(elapsed_seconds / 1.1 * 2.25);
+  -- Ruimte voor goudmunten om de 500 meter en bestaande muntbonussen.
+  select greatest(1, coin_multiplier) into max_coin_multiplier
+  from public.profiles where id = p_user_id;
+  max_coins := ceil(elapsed_seconds * 80 * max_coin_multiplier);
 
   if p_score > max_score then raise exception 'Score exceeds time limit'; end if;
   if p_coins > max_coins then raise exception 'Coin limit exceeded'; end if;
-
-  -- Robijn is extreem zeldzaam: één per 500 punten, met een plausibiliteitslimiet
-  -- op basis van de racetijd zodat snelle runs niet onevenredig veel opleveren.
-  awarded_rubies := floor(p_score / 500.0)::integer;
-  max_rubies := floor(elapsed_seconds / 60.0)::integer;
-  if awarded_rubies > max_rubies then
-    awarded_rubies := max_rubies;
-  end if;
-  if awarded_rubies < 0 then awarded_rubies := 0; end if;
 
   update public.game_runs
   set finished_at = clock_timestamp(), score = p_score, coins = p_coins
@@ -708,18 +748,17 @@ begin
 
   update public.profiles
   set coins = coins + p_coins,
-      rubies = rubies + awarded_rubies,
       best_score = greatest(best_score, p_score),
       collision_count = collision_count + 1
   where id = p_user_id;
 
-  progress_result := public.add_player_xp(p_user_id, greatest(1, floor(p_score / 10.0)::integer));
+  progress_result := public.add_player_xp(p_user_id, p_score);
 
   return jsonb_build_object(
     'accepted', true,
     'score', p_score,
     'coins', p_coins,
-    'rubies', awarded_rubies,
+    'rubies', coalesce((progress_result ->> 'bonusRubies')::integer, 0),
     'elapsedSeconds', floor(elapsed_seconds),
     'progress', progress_result
   );

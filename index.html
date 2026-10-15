@@ -26,6 +26,15 @@
         <span id="player-name">GASTSPELER</span>
         <span class="wallet"><i data-lucide="coins" aria-hidden="true"></i> <strong id="coin-total">0</strong></span>
         <span class="wallet ruby-wallet"><i data-lucide="gem" aria-hidden="true"></i> <strong id="ruby-total">0</strong></span>
+        <div id="header-level" class="header-level" aria-label="Levelvoortgang">
+          <div class="header-level-main">
+            <div class="header-level-meta"><strong>LEVEL <span id="header-level-current">1</span></strong><small id="header-level-points">0 / 2.500</small></div>
+            <div class="header-level-track"><span id="header-level-progress-fill"></span></div>
+          </div>
+          <button id="level-info-button" class="level-info-button" type="button" aria-label="Levelinformatie openen" title="Levelinformatie">
+            <i data-lucide="info" aria-hidden="true"></i>
+          </button>
+        </div>
         <button id="header-profile" class="header-profile" data-screen="profile" type="button" aria-label="Profiel openen" title="Profiel">
           <span id="header-avatar" class="avatar-mark" aria-hidden="true"><i data-lucide="car-front"></i></span>
         </button>
@@ -38,6 +47,7 @@
       <button data-screen="garage" class="nav-btn"><i data-lucide="wrench" aria-hidden="true"></i> Garage</button>
       <button data-screen="leaderboard" class="nav-btn"><i data-lucide="trophy" aria-hidden="true"></i> Wereldranglijst</button>
       <button data-screen="profile" class="nav-btn"><i data-lucide="user-round" aria-hidden="true"></i> Profiel</button>
+      <button data-screen="settings" class="nav-btn"><i data-lucide="settings" aria-hidden="true"></i> Instellingen</button>
     </nav>
 
     <section id="home-screen" class="screen">
@@ -54,7 +64,6 @@
             <div><small>BESTE SCORE</small><strong id="best-score">0</strong></div>
             <div><small>AUTO'S</small><strong id="owned-count">1</strong></div>
             <div><small>RACEKLASSE</small><strong id="player-rank">ROOKIE</strong></div>
-            <div class="level-stat"><small>LEVEL <strong id="player-level">1</strong></small><div class="xp-track"><span id="level-progress-fill"></span></div><small id="level-xp">0 / 100 XP</small></div>
           </div>
         </div>
         <div class="hero-visual">
@@ -266,6 +275,51 @@
       <p class="notice">Alleen scores van ingelogde spelers die door de server zijn geaccepteerd, horen in deze lijst.</p>
     </section>
 
+    <section id="settings-screen" class="screen hidden">
+      <div class="section-heading">
+        <div><span class="eyebrow">PAS JE RIT AAN</span><h2>Instellingen</h2><p>Jouw spel, jouw regels.</p></div>
+      </div>
+      <div class="settings-grid">
+        <article class="panel settings-panel">
+          <span class="eyebrow">GELUID</span>
+          <div class="setting-row">
+            <div><h3>Motorgeluid</h3><p class="muted">Schakel het motorgeluid tijdens races in of uit.</p></div>
+            <button id="setting-sound" class="setting-toggle" type="button" role="switch" aria-checked="true" aria-label="Motorgeluid">AAN</button>
+          </div>
+          <label for="setting-volume">Volume <output id="setting-volume-value" for="setting-volume">60%</output></label>
+          <input id="setting-volume" type="range" min="0" max="100" step="5" value="60">
+        </article>
+
+        <article class="panel settings-panel">
+          <span class="eyebrow">GAMEPLAY</span>
+          <label for="setting-traffic">Verkeersdrukte</label>
+          <select id="setting-traffic">
+            <option value="0.75">Rustig</option>
+            <option value="1" selected>Normaal</option>
+            <option value="1.3">Druk</option>
+          </select>
+          <p class="muted">Past de hoeveelheid en snelheid van het verkeer aan.</p>
+          <div class="setting-row">
+            <div><h3>Minder beweging</h3><p class="muted">Verminder decoratieve animaties.</p></div>
+            <button id="setting-reduced-motion" class="setting-toggle" type="button" role="switch" aria-checked="false" aria-label="Minder beweging">UIT</button>
+          </div>
+        </article>
+
+        <article class="panel settings-panel test-mode-panel">
+          <span class="eyebrow">ONTWIKKELAARSTEST</span>
+          <h3>Testportemonnee</h3>
+          <p class="muted">Ontgrendel een groot testsaldo om auto's, upgrades en cosmetica uit te proberen.</p>
+          <form id="test-access-form" class="test-access-form">
+            <label for="test-access-code">Toegangscode</label>
+            <input id="test-access-code" type="password" autocomplete="one-time-code" required>
+            <button class="btn primary full" type="submit"><i data-lucide="key-round" aria-hidden="true"></i> TESTSALDO ONTGRENDELEN</button>
+          </form>
+          <p id="test-mode-status" class="notice" role="status" aria-live="polite"></p>
+          <button id="test-mode-disable" class="btn secondary full hidden" type="button">TESTMODUS UITSCHAKELEN</button>
+        </article>
+      </div>
+    </section>
+
     <section id="profile-screen" class="screen hidden">
       <div class="section-heading">
         <div><span class="eyebrow">RACER ACCOUNT</span><h2>Mijn profiel</h2></div>
@@ -302,7 +356,7 @@
             <div class="profile-stat"><small>BESTE SCORE</small><strong id="profile-best">0</strong></div>
             <div class="profile-stat"><small>BOTSINGEN</small><strong id="profile-collisions">0</strong></div>
             <div class="profile-stat"><small>LEVEL</small><strong id="profile-level">1</strong></div>
-            <div class="profile-stat"><small>ERVARING</small><strong id="profile-xp">0 / 100 XP</strong></div>
+            <div class="profile-stat"><small>PUNTEN TOT VOLGEND LEVEL</small><strong id="profile-xp">0 / 2.500 punten</strong></div>
             <div class="profile-stat"><small>MUNTEN</small><strong id="profile-coins">0</strong></div>
             <div class="profile-stat"><small>ROBIJNEN</small><strong id="profile-rubies">0</strong></div>
             <div class="profile-stat"><small>RACEKLASSE</small><strong id="profile-rank">ROOKIE</strong></div>
@@ -345,9 +399,15 @@
         <button id="sound-button" class="btn small secondary sound-button" type="button" aria-label="Motorgeluid uitzetten" title="Motorgeluid aan of uit"><i data-lucide="volume-2" aria-hidden="true"></i></button>
         <button id="pause-button" class="btn small secondary"><i data-lucide="pause" aria-hidden="true"></i> Pauze</button>
       </div>
-      <div class="road-wrap">
+      <div class="road-wrap" id="road-wrap">
         <canvas id="game-canvas" width="360" height="600"
                 aria-label="Car Dodge racespel"></canvas>
+        <div id="crash-explosion" class="crash-explosion hidden" aria-hidden="true">
+          <span class="explosion-spark spark-one"></span>
+          <span class="explosion-spark spark-two"></span>
+          <span class="explosion-spark spark-three"></span>
+          <span class="explosion-spark spark-four"></span>
+        </div>
         <div id="pause-overlay" class="overlay hidden">
           <h2>Gepauzeerd</h2>
           <button id="resume-button" class="btn primary"><i data-lucide="play" aria-hidden="true"></i> Verder</button>
@@ -380,5 +440,20 @@
 
     <footer>My road <span>◆</span> TAKE THE SCENIC ROUTE</footer>
   </main>
+  <dialog id="level-info-dialog" class="level-info-dialog" aria-labelledby="level-info-heading">
+    <div class="level-info-heading">
+      <div><span class="eyebrow">RACER VOORTGANG</span><h2 id="level-info-heading">Levelinformatie</h2></div>
+      <button id="level-info-close" class="level-info-close" type="button" aria-label="Info sluiten" title="Sluiten">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="level-info-current"><span>LEVEL <strong id="level-info-current">1</strong></span><small id="level-info-points">0 / 2.500 punten</small></div>
+    <div class="header-level-track level-info-track"><span id="level-info-progress-fill"></span></div>
+    <div class="level-info-rewards">
+      <p><i data-lucide="gem" aria-hidden="true"></i> Elk level: 1 robijn</p>
+      <p><i data-lucide="trophy" aria-hidden="true"></i> Elke 5 levels: 5 extra robijnen</p>
+      <small>Per level is 2.500 racescore nodig.</small>
+    </div>
+  </dialog>
 </body>
 </html>

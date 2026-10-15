@@ -2,20 +2,13 @@
 "use strict";
 
 require("dotenv").config();
-const serviceAccount = JSON.parse(
-  process.env.FIREBASE_SERVICE_ACCOUNT
-);
-
-const { initializeApp, cert } = require("firebase-admin/app");
-
-initializeApp({
-  credential: cert(serviceAccount)
-});
+const { timingSafeEqual } = require("node:crypto");
 const express = require("express");
 const cors = require("cors");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
+const testCodeFailures = new Map();
 
 // In productie alleen de ingestelde website-origin toestaan.
 const allowedOrigin = process.env.CLIENT_ORIGIN;
@@ -142,6 +135,52 @@ async function requireUser(req, res, next) {
 }
 
 app.get("/api/health", (_req, res) => res.json({ ok:true }));
+
+app.post("/api/test/unlock", async (req, res) => {
+  const configuredCode = process.env.TEST_ACCESS_CODE;
+  const suppliedCode = typeof req.body?.code === "string" ? req.body.code : "";
+  if (!configuredCode || !configuredCode.trim()) {
+    return fail(res, 503, "Stel een TEST_ACCESS_CODE in de server-.env in.");
+  }
+
+  const now = Date.now();
+  const previousFailures = testCodeFailures.get(req.ip);
+  if (previousFailures?.blockedUntil > now) {
+    return fail(res, 429, "Te veel foute pogingen. Probeer het over enkele minuten opnieuw.");
+  }
+  const suppliedBuffer = Buffer.from(suppliedCode);
+  const configuredBuffer = Buffer.from(configuredCode);
+  if (suppliedBuffer.length !== configuredBuffer.length || !timingSafeEqual(suppliedBuffer, configuredBuffer)) {
+    const count = previousFailures?.windowUntil > now ? previousFailures.count + 1 : 1;
+    testCodeFailures.set(req.ip, {
+      count,
+      windowUntil:now + 5 * 60 * 1000,
+      blockedUntil:count >= 8 ? now + 5 * 60 * 1000 : 0
+    });
+    return fail(res, 401, "Ongeldige testcode.");
+  }
+  testCodeFailures.delete(req.ip);
+
+  const balance = 999999999;
+  const bearer = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || "");
+  if (!bearer) return res.json({ unlocked:true, localOnly:true, coins:balance, rubies:balance });
+
+  try {
+    const { data, error } = await authClient.auth.getUser(bearer[1]);
+    if (error || !data.user) return fail(res, 401, "Log opnieuw in om het accounttestsaldo te activeren.");
+    const { data:updatedBalance, error:updateError } = await admin
+      .from("profiles")
+      .update({ coins:balance, rubies:balance })
+      .eq("id", data.user.id)
+      .select("coins,rubies")
+      .single();
+    if (updateError) throw updateError;
+    res.json({ unlocked:true, localOnly:false, profile:updatedBalance });
+  } catch (error) {
+    console.error("Testportemonnee activeren mislukt:", error);
+    fail(res, 500, "Testsaldo kon niet op het account worden gezet.");
+  }
+});
 
 app.use("/api", (req, res, next) => {
   if (req.path === "/health") return next();

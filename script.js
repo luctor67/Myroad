@@ -3,7 +3,9 @@
 // Vul deze waarden in vanuit Supabase > Project Settings > API.
 const SUPABASE_URL = "https://jfdsjyqznbvilvltzpgd.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Kyj9jH-lKc_8QMpPcKgjEw_pgXTU-YT";
-const API_URL = "http://localhost:3000/api";
+const API_URL = window.CAR_API_URL || (/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
+  ? `${window.location.protocol}//${window.location.hostname}:3000/api`
+  : `${window.location.origin}/api`);
 
 const hasSupabaseConfig =
   SUPABASE_URL.includes(".supabase.co") &&
@@ -15,6 +17,8 @@ const supabaseClient = hasSupabaseConfig
   : null;
 
 const $ = id => document.getElementById(id);
+const POINTS_PER_LEVEL = 2500;
+const MILESTONE_RUBY_BONUS = 5;
 const AVATAR_ICONS = ["car-front", "trophy", "zap", "shield", "rocket", "star"];
 const AVATAR_COLORS = ["#d8838a", "#62e6a7", "#ffc857", "#58a6c7", "#b18cff", "#ff426d"];
 const LEADERBOARD_CATEGORIES = {
@@ -264,7 +268,8 @@ const WORLDS = {
 const DEFAULT_SAVE = {
   coins:0, rubies:0, best:0, collisions:0, owned:["blue"], selected:"blue",
   upgrades:{}, tuning:{}, ownedPaints:[], ownedCosmetics:[], xp:0, level:1,
-  coinMultiplier:1, world:"country", sound:true, avatar:"car-front", avatarColor:"#d8838a"
+  coinMultiplier:1, world:"country", sound:true, volume:60, trafficLevel:1,
+  reduceMotion:false, testMode:false, avatar:"car-front", avatarColor:"#d8838a"
 };
 
 let save = loadLocal();
@@ -280,6 +285,7 @@ let submitPending = false;
 
 let running = false, paused = false, raf = 0, lastTime = 0;
 let player, enemies = [], coins = [], worldHazards = [], score = 0, runCoins = 0;
+let runDistanceMeters = 0, nextGoldCoinAt = 500;
 let speed = 210, spawnTimer = 0, coinTimer = 0, worldHazardTimer = 0, worldEffectTime = 0, roadOffset = 0;
 let engineAudio = null;
 const canvas = $("game-canvas");
@@ -349,6 +355,31 @@ function refreshSoundButton() {
   refreshIcons();
 }
 
+function refreshSettings() {
+  const soundToggle = $("setting-sound");
+  const motionToggle = $("setting-reduced-motion");
+  const volume = Math.max(0, Math.min(100, Number(save.volume ?? 60)));
+  if (soundToggle) {
+    soundToggle.setAttribute("aria-checked", String(Boolean(save.sound)));
+    soundToggle.textContent = save.sound ? "AAN" : "UIT";
+  }
+  if (motionToggle) {
+    motionToggle.setAttribute("aria-checked", String(Boolean(save.reduceMotion)));
+    motionToggle.textContent = save.reduceMotion ? "AAN" : "UIT";
+  }
+  if ($("setting-volume")) $("setting-volume").value = volume;
+  if ($("setting-volume-value")) $("setting-volume-value").textContent = `${volume}%`;
+  if ($("setting-traffic")) $("setting-traffic").value = String(save.trafficLevel || 1);
+  document.body.classList.toggle("reduce-motion", Boolean(save.reduceMotion));
+  const testActive = Boolean(save.testMode);
+  if ($("test-mode-status")) {
+    $("test-mode-status").textContent = testActive
+      ? "Testmodus actief. Je hebt een testsaldo voor deze save."
+      : "De code wordt veilig gecontroleerd door de gameserver.";
+  }
+  $("test-mode-disable")?.classList.toggle("hidden", !testActive);
+}
+
 async function startEngineAudio() {
   if (!save.sound || !running || paused || engineAudio) return;
   const AudioContextType = window.AudioContext || window.webkitAudioContext;
@@ -362,7 +393,7 @@ async function startEngineAudio() {
   oscillator.frequency.value = 70;
   filter.type = "lowpass";
   filter.frequency.value = 360;
-  gain.gain.value = 0.035;
+  gain.gain.value = 0.035 * Math.max(0, Math.min(100, Number(save.volume ?? 60))) / 100;
   oscillator.connect(filter);
   filter.connect(gain);
   gain.connect(context.destination);
@@ -399,8 +430,29 @@ function toggleSound() {
   save.sound = !save.sound;
   persistLocal();
   refreshSoundButton();
+  refreshSettings();
   if (save.sound && running && !paused) startEngineAudio();
   else stopEngineAudio();
+}
+
+function changeVolume(value) {
+  save.volume = Math.max(0, Math.min(100, Number(value)));
+  persistLocal();
+  refreshSettings();
+  if (engineAudio) {
+    engineAudio.gain.gain.setTargetAtTime(
+      0.035 * save.volume / 100,
+      engineAudio.context.currentTime,
+      0.04
+    );
+  }
+}
+
+function setReducedMotion(enabled) {
+  save.reduceMotion = Boolean(enabled);
+  document.body.classList.toggle("reduce-motion", save.reduceMotion);
+  persistLocal();
+  refreshSettings();
 }
 
 function statsFor(car) {
@@ -433,36 +485,14 @@ function statsFor(car) {
 function awardLocalXP(amount) {
   save.xp += Math.max(0, Math.floor(amount));
   const rewards = [];
-  while (save.xp >= save.level * 100) {
-    save.xp -= save.level * 100;
+  while (save.xp >= POINTS_PER_LEVEL) {
+    save.xp -= POINTS_PER_LEVEL;
     save.level++;
-    if (save.level % 5 !== 0) continue;
-
-    if (save.level === 5 || (save.level - 5) % 20 === 0) {
-      save.coinMultiplier *= 2;
-      rewards.push(`Level ${save.level}: dubbele muntbonus`);
-    } else if (save.level === 10 || save.level === 20) {
-      const carId = save.level === 10 ? "cedar" : "comet";
-      const car = CARS.find(option => option.id === carId);
-      if (!save.owned.includes(carId)) {
-        save.owned.push(carId);
-        rewards.push(`Level ${save.level}: ${car.name} vrijgespeeld`);
-      } else {
-        save.coins += Math.floor(car.price / 2);
-        rewards.push(`Level ${save.level}: ${Math.floor(car.price / 2)} bonusmunten`);
-      }
-    } else if (save.level === 15) {
-      save.coins += 1500;
-      rewards.push("Level 15: 1.500 bonusmunten");
+    save.rubies += 1;
+    if (save.level % 5 === 0) {
+      save.rubies += MILESTONE_RUBY_BONUS;
+      rewards.push(`Level ${save.level}: 1 robijn + ${MILESTONE_RUBY_BONUS} bonusrobijnen`);
     } else {
-      const rewardCoins = save.level * 100;
-      save.coins += rewardCoins;
-      rewards.push(`Level ${save.level}: ${rewardCoins} bonusmunten`);
-    }
-
-    // Robijn is zeldzaam: één per level-drempel van 10.
-    if (save.level % 10 === 0) {
-      save.rubies += 1;
       rewards.push(`Level ${save.level}: 1 robijn`);
     }
   }
@@ -490,6 +520,81 @@ async function api(path, options = {}) {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "De serveraanvraag is mislukt.");
   return body;
+}
+
+function canFallbackToSupabase(error) {
+  return Boolean(supabaseClient && session && error instanceof TypeError);
+}
+
+async function saveTuningOnline(carId, tuning) {
+  try {
+    const data = await api("/garage/tune", {
+      method:"POST",
+      body:JSON.stringify({ carId, tuning })
+    });
+    applyProfile(data.profile);
+    return;
+  } catch (backendError) {
+    if (!canFallbackToSupabase(backendError)) throw backendError;
+  }
+
+  const { error } = await supabaseClient.rpc("save_my_tuning", {
+    p_car_id:carId,
+    p_tuning:tuning
+  });
+  if (error) throw error;
+  const result = await readProfileDirect();
+  applyProfile(result.profile);
+}
+
+async function purchasePaintOnline(paintId, price, ruby = false) {
+  if (!session) {
+    if (ruby) save.rubies -= price;
+    else save.coins -= price;
+    save.ownedPaints.push(paintId);
+    return;
+  }
+
+  try {
+    const data = await api(ruby ? "/garage/paint/ruby/buy" : "/garage/paint/buy", {
+      method:"POST",
+      body:JSON.stringify({ paintId })
+    });
+    applyProfile(data.profile);
+    return;
+  } catch (backendError) {
+    if (!canFallbackToSupabase(backendError)) throw backendError;
+  }
+
+  const { error } = await supabaseClient.rpc(ruby ? "buy_my_ruby_paint" : "buy_my_paint", {
+    p_paint_id:paintId,
+    p_price:price
+  });
+  if (error) throw error;
+  const result = await readProfileDirect();
+  applyProfile(result.profile);
+}
+
+async function updateProfileOnline(profileUpdate) {
+  try {
+    const result = await api("/profile", {
+      method:"PATCH",
+      body:JSON.stringify(profileUpdate)
+    });
+    applyProfile(result.profile);
+    return;
+  } catch (backendError) {
+    if (!canFallbackToSupabase(backendError)) throw backendError;
+  }
+
+  const { error } = await supabaseClient.rpc("update_my_profile", {
+    p_username:profileUpdate.username,
+    p_avatar:profileUpdate.avatar,
+    p_avatar_color:profileUpdate.avatarColor
+  });
+  if (error) throw error;
+  const result = await readProfileDirect();
+  applyProfile(result.profile);
 }
 
 // Profielkolommen die zowel de backend als de frontend gebruiken.
@@ -609,6 +714,7 @@ function renderAvatarPicker() {
 
   const headerAvatar = $("header-avatar");
   headerAvatar.style.setProperty("--avatar-color", color);
+  $("header-level").style.setProperty("--avatar-color", color);
   headerAvatar.innerHTML = '<canvas width="32" height="32" aria-hidden="true"></canvas>';
   drawPixelAvatar(headerAvatar.querySelector("canvas"), avatar, color);
   const preview = $("profile-avatar-preview");
@@ -660,7 +766,7 @@ function renderProfile() {
   $("profile-best").textContent = Number(save.best || 0).toLocaleString("nl-BE");
   $("profile-collisions").textContent = Number(save.collisions || 0).toLocaleString("nl-BE");
   $("profile-level").textContent = save.level;
-  $("profile-xp").textContent = `${save.xp} / ${save.level * 100} XP`;
+  $("profile-xp").textContent = `${save.xp.toLocaleString("nl-BE")} / ${POINTS_PER_LEVEL.toLocaleString("nl-BE")} punten`;
   $("profile-coins").textContent = Number(save.coins || 0).toLocaleString("nl-BE");
   $("profile-rubies").textContent = Number(save.rubies || 0).toLocaleString("nl-BE");
   $("profile-rank").textContent = save.best >= 5000 ? "ELITE" : save.best >= 1500 ? "PRO" : save.best >= 500 ? "RACER" : "ROOKIE";
@@ -673,12 +779,14 @@ function renderProfile() {
 }
 
 function showScreen(name) {
-  const names = ["home","shop","garage","leaderboard","profile","auth","game","over"];
+  const names = ["home","shop","garage","leaderboard","profile","settings","auth","game","over"];
   names.forEach(n => $(`${n}-screen`).classList.toggle("hidden", n !== name));
+  document.body.classList.toggle("game-active", name === "game");
   document.querySelectorAll(".nav-btn").forEach(button => {
     button.classList.toggle("active", button.dataset.screen === name);
   });
-  window.scrollTo({ top:0, behavior:"smooth" });
+  if (name === "game") window.scrollTo(0, 0);
+  else window.scrollTo({ top:0, behavior:"smooth" });
 }
 
 function refreshHUD() {
@@ -691,10 +799,14 @@ function refreshHUD() {
   $("player-name").textContent = profile?.username?.toUpperCase() || "GASTSPELER";
   $("player-rank").textContent =
     save.best >= 5000 ? "ELITE" : save.best >= 1500 ? "PRO" : save.best >= 500 ? "RACER" : "ROOKIE";
-  $("player-level").textContent = save.level;
-  const nextLevelXP = save.level * 100;
-  $("level-progress-fill").style.width = `${Math.min(100, save.xp / nextLevelXP * 100)}%`;
-  $("level-xp").textContent = `${save.xp} / ${nextLevelXP} XP`;
+  const levelProgress = Math.min(100, save.xp / POINTS_PER_LEVEL * 100);
+  const levelPoints = `${save.xp.toLocaleString("nl-BE")} / ${POINTS_PER_LEVEL.toLocaleString("nl-BE")}`;
+  $("header-level-current").textContent = save.level;
+  $("header-level-points").textContent = levelPoints;
+  $("header-level-progress-fill").style.width = `${levelProgress}%`;
+  $("level-info-current").textContent = save.level;
+  $("level-info-points").textContent = `${levelPoints} punten`;
+  $("level-info-progress-fill").style.width = `${levelProgress}%`;
   renderWorldOptions();
 
   const car = currentCar();
@@ -1216,7 +1328,9 @@ function renderPaintOptions(car) {
       save.ownedPaints.includes(paint.id) || tuning.paint === paint.color;
     const info = priceInfo(paint);
     const selected = currentPaint === paint.color && unlocked;
-    const label = unlocked ? selected ? "Gekozen" : "Gebruik" : info.label;
+    const label = unlocked
+      ? selected ? "Gekozen" : "Gebruik"
+      : info.balance < info.price ? `Nog ${info.price - info.balance} ${info.suffix}` : info.label;
     return `<button class="paint-option ${selected ? "selected" : ""} ${info.ruby ? "ruby-item" : ""}" type="button"
       data-paint="${paint.id}" ${!unlocked && info.balance < info.price ? "disabled" : ""}
       aria-label="${paint.name}, ${label}" aria-pressed="${selected}">
@@ -1236,7 +1350,11 @@ function refreshCustomPaintButton(car = currentCar()) {
   const color = $("paint-picker").value.toLowerCase();
   const tuning = save.tuning?.[car.id] || {};
   const unlocked = save.ownedPaints.includes(color) || tuning.paint === color || color === car.color;
-  button.textContent = unlocked ? "GEBRUIK KLEUR" : `KOOP KLEUR · ${CUSTOM_PAINT_PRICE}`;
+  button.textContent = unlocked
+    ? "GEBRUIK KLEUR"
+    : save.coins < CUSTOM_PAINT_PRICE
+      ? `NOG ${CUSTOM_PAINT_PRICE - save.coins} MUNTEN`
+      : `KOOP KLEUR · ${CUSTOM_PAINT_PRICE}`;
   button.disabled = !unlocked && save.coins < CUSTOM_PAINT_PRICE;
 }
 
@@ -1272,11 +1390,7 @@ async function equipTuningValue(car, field, value) {
   persistLocal();
   if (session) {
     try {
-      const data = await api("/garage/tune", {
-        method:"POST",
-        body:JSON.stringify({ carId:car.id, tuning:save.tuning[car.id] })
-      });
-      applyProfile(data.profile);
+      await saveTuningOnline(car.id, save.tuning[car.id]);
     } catch (error) {
       showNotice("Cosmetica lokaal opgeslagen; online opslaan mislukte: " + error.message);
     }
@@ -1322,19 +1436,12 @@ async function buyCustomPaint() {
   const unlocked = save.ownedPaints.includes(color) || tuning.paint === color || color === car.color;
   if (!unlocked && save.coins < CUSTOM_PAINT_PRICE) return alert("Je hebt niet genoeg munten voor deze kleur.");
 
-  if (!unlocked && session) {
+  if (!unlocked) {
     try {
-      const data = await api("/garage/paint/buy", {
-        method:"POST",
-        body:JSON.stringify({ paintId:color })
-      });
-      applyProfile(data.profile);
+      await purchasePaintOnline(color, CUSTOM_PAINT_PRICE);
     } catch (error) {
       return alert("Kleur kopen mislukt: " + error.message);
     }
-  } else if (!unlocked) {
-    save.coins -= CUSTOM_PAINT_PRICE;
-    save.ownedPaints.push(color);
   }
   $("paint-select").value = color;
   await equipTuningValue(car, "paint", color);
@@ -1355,30 +1462,19 @@ async function choosePaint(paintId) {
     return alert(info.ruby ? "Je hebt niet genoeg robijn voor deze exclusieve lak." : "Je hebt niet genoeg munten voor deze lak.");
   }
 
-  if (!unlocked && session) {
+  if (!unlocked) {
     try {
-      const data = await api(info.ruby ? "/garage/paint/ruby/buy" : "/garage/paint/buy", {
-        method:"POST",
-        body:JSON.stringify({ paintId:paint.id })
-      });
-      applyProfile(data.profile);
+      await purchasePaintOnline(paint.id, info.price, info.ruby);
     } catch (error) {
       return alert("Lak kopen mislukt: " + error.message);
     }
-  } else if (!unlocked) {
-    if (info.ruby) save.rubies -= info.price; else save.coins -= info.price;
-    save.ownedPaints.push(paint.id);
   }
 
   save.tuning[car.id] = { ...(save.tuning?.[car.id] || {}), paint:paint.color };
   persistLocal();
   if (session) {
     try {
-      const data = await api("/garage/tune", {
-        method:"POST",
-        body:JSON.stringify({ carId:car.id, tuning:save.tuning[car.id] })
-      });
-      applyProfile(data.profile);
+      await saveTuningOnline(car.id, save.tuning[car.id]);
     } catch (error) {
       showNotice("Lak lokaal toegepast, maar online opslaan mislukte: " + error.message);
     }
@@ -2299,19 +2395,24 @@ function drawPixelRock(x, y) {
 }
 
 function drawCoin(coin) {
+  const colors = {
+    bronze:{ edge:"#65391f", front:"#d98b4a", shadow:"#a75b2e", shine:"#f6c18b" },
+    silver:{ edge:"#4b5d66", front:"#d9e5e8", shadow:"#9aafb7", shine:"#ffffff" },
+    gold:{ edge:"#743315", front:"#ffca34", shadow:"#f2a91f", shine:"#fff4c0" }
+  }[coin.type] || { edge:"#65391f", front:"#d98b4a", shadow:"#a75b2e", shine:"#f6c18b" };
   const rows = [
     [6,13],[4,15],[3,16],[2,17],[1,18],[1,18],[0,19],[0,19],[0,19],[0,19],
     [0,19],[1,18],[1,18],[2,17],[3,16],[4,15],[6,13]
   ];
   rows.forEach(([left, right], row) => {
-    ctx.fillStyle = "#743315";
+    ctx.fillStyle = colors.edge;
     ctx.fillRect(coin.x - 10 + left, coin.y - 9 + row, right - left + 1, 1);
     if (right - left > 3) {
-      ctx.fillStyle = row < 8 ? "#ffca34" : "#f2a91f";
+      ctx.fillStyle = row < 8 ? colors.front : colors.shadow;
       ctx.fillRect(coin.x - 9 + left, coin.y - 8 + row, right - left - 1, 1);
     }
   });
-  ctx.fillStyle = "#fff4c0";
+  ctx.fillStyle = colors.shine;
   ctx.fillRect(coin.x - 5, coin.y + 3, 3, 2);
   ctx.fillRect(coin.x - 2, coin.y, 3, 2);
   ctx.fillRect(coin.x + 1, coin.y - 3, 3, 2);
@@ -2350,6 +2451,8 @@ function resetRun() {
   worldEffectTime = 0;
   score = 0;
   runCoins = Number(player.special.startingCoins || 0);
+  runDistanceMeters = 0;
+  nextGoldCoinAt = 500;
   speed = 210;
   spawnTimer = .35;
   coinTimer = 1.1;
@@ -2382,6 +2485,8 @@ function spawnEnemy() {
     x,
     targetX:x,
     lane,
+    targetLane:lane,
+    laneChangeDirection:0,
     laneChangeIn:2.5 + Math.random() * 4,
     y:-78, w:38, h:65,
     color:car.color,
@@ -2391,13 +2496,16 @@ function spawnEnemy() {
   });
 }
 
-function spawnCoin() {
+function spawnCoin(type = "bronze") {
   const lanes = laneCount();
   const laneWidth = (ROAD_RIGHT - ROAD_LEFT) / lanes;
   const lane = Math.floor(Math.random() * lanes);
+  const values = { bronze:1, silver:10, gold:100 };
   coins.push({
     x:ROAD_LEFT + laneWidth * lane + laneWidth / 2,
-    y:-20
+    y:-20,
+    type,
+    value:values[type]
   });
 }
 
@@ -2410,7 +2518,9 @@ function collides(a, b, m = 2) {
 
 function update(dt) {
   const world = currentWorld();
+  const trafficLevel = Math.max(0.75, Math.min(1.3, Number(save.trafficLevel) || 1));
   worldEffectTime += dt;
+  runDistanceMeters += speed / 3.6 * dt;
   const turnSpeed = (180 + player.handling * 1.5) * Number(player.special.steeringMultiplier || 1);
   const steering = (keys.has("ArrowRight") || keys.has("d") ? 1 : 0) -
     (keys.has("ArrowLeft") || keys.has("a") ? 1 : 0);
@@ -2440,36 +2550,64 @@ function update(dt) {
 
   spawnTimer += dt;
   coinTimer += dt;
-  if (spawnTimer > Math.max(world.minimumSpawn, world.spawn - score / world.ramp)) {
+  if (spawnTimer > Math.max(world.minimumSpawn, world.spawn - score / world.ramp) / trafficLevel) {
     spawnTimer = 0;
     spawnEnemy();
   }
   if (coinTimer > 1.45) {
     coinTimer = 0;
-    if (Math.random() > .12) spawnCoin();
+    if (Math.random() > .12) spawnCoin("bronze");
+    else if (Math.random() < .2) spawnCoin("silver");
+  }
+  while (runDistanceMeters >= nextGoldCoinAt) {
+    spawnCoin("gold");
+    nextGoldCoinAt += 500;
   }
 
-  enemies.forEach(enemy => {
+  enemies.slice().sort((a, b) => a.y - b.y).forEach(enemy => {
     enemy.laneChangeIn -= dt;
-    if (enemy.laneChangeIn <= 0) {
+    if (enemy.laneChangeIn <= 0 && enemy.targetLane === enemy.lane) {
       enemy.laneChangeIn = 2.5 + Math.random() * 4;
       const options = [enemy.lane - 1, enemy.lane + 1].filter(lane => lane >= 0 && lane < laneCount(world));
-
-      // Verander alleen van rijstrook als die vrij is en er geen auto vlakbij rijdt.
       const safeOptions = options.filter(targetLane =>
         !enemies.some(other => other !== enemy &&
-          (other.lane === targetLane || other.lane === enemy.lane) &&
-          Math.abs(other.y - enemy.y) < 100)
+          (other.lane === targetLane || other.targetLane === targetLane || other.lane === enemy.lane) &&
+          Math.abs(other.y - enemy.y) < 125)
       );
       if (safeOptions.length && Math.random() < 0.35) {
-        enemy.lane = safeOptions[Math.floor(Math.random() * safeOptions.length)];
+        enemy.targetLane = safeOptions[Math.floor(Math.random() * safeOptions.length)];
+        enemy.laneChangeDirection = Math.sign(enemy.targetLane - enemy.lane);
       }
     }
+
     const laneWidth = (ROAD_RIGHT - ROAD_LEFT) / laneCount(world);
-    enemy.targetX = ROAD_LEFT + roadBendAt(enemy.y, world) + laneWidth * enemy.lane + laneWidth / 2 - enemy.w / 2;
-    enemy.x += Math.sign(enemy.targetX - enemy.x) * Math.min(Math.abs(enemy.targetX - enemy.x), 58 * dt);
+    enemy.targetX = ROAD_LEFT + roadBendAt(enemy.y, world) + laneWidth * enemy.targetLane + laneWidth / 2 - enemy.w / 2;
+    let nextX = enemy.x + Math.sign(enemy.targetX - enemy.x) * Math.min(Math.abs(enemy.targetX - enemy.x), 78 * dt);
     const relativeTrafficSpeed = Math.max(speed * 0.65, Math.min(speed * 1.4, speed * enemy.speedFactor));
-    enemy.y += relativeTrafficSpeed * world.traffic * dt;
+    let nextY = enemy.y + relativeTrafficSpeed * world.traffic * trafficLevel * dt;
+
+    for (const other of enemies) {
+      if (other === enemy) continue;
+      const overlapsX = nextX < other.x + other.w + 5 && nextX + enemy.w > other.x - 5;
+      const overlapsY = nextY < other.y + other.h + 7 && nextY + enemy.h > other.y - 7;
+      if (!overlapsX || !overlapsY) continue;
+
+      if (enemy.targetLane !== enemy.lane) {
+        enemy.targetLane = enemy.lane;
+        enemy.laneChangeDirection = 0;
+        enemy.targetX = ROAD_LEFT + roadBendAt(enemy.y, world) + laneWidth * enemy.lane + laneWidth / 2 - enemy.w / 2;
+        nextX = enemy.x;
+      }
+      if (enemy.y > other.y) nextY = Math.min(nextY, other.y + other.h + 7);
+      else nextY = Math.min(nextY, enemy.y);
+    }
+
+    enemy.x += Math.sign(enemy.targetX - enemy.x) * Math.min(Math.abs(enemy.targetX - enemy.x), 78 * dt);
+    if (enemy.targetLane !== enemy.lane && Math.abs(enemy.targetX - enemy.x) < 2) {
+      enemy.lane = enemy.targetLane;
+      enemy.laneChangeDirection = 0;
+    }
+    enemy.y = nextY;
     if (!enemy.passed && enemy.y > player.y + player.h) {
       enemy.passed = true;
       const close = Math.abs((enemy.x + enemy.w / 2) - (player.x + player.w / 2)) < player.w + 18;
@@ -2508,7 +2646,7 @@ function update(dt) {
       player.y < coin.y + radius &&
       player.y + player.h > coin.y - radius;
     if (got) {
-      runCoins += Math.max(1, Math.round(player.coinBonus * player.coinMultiplier));
+      runCoins += Math.max(1, Math.round(coin.value * player.coinBonus * player.coinMultiplier));
       $("run-coins").textContent = runCoins;
       return false;
     }
@@ -2521,11 +2659,26 @@ function update(dt) {
   $("score").textContent = Math.floor(score);
 }
 
+function drawTrafficBlinker(enemy) {
+  if (!enemy.laneChangeDirection || Math.floor(worldEffectTime * 4) % 2 !== 0) return;
+  const indicatorX = enemy.laneChangeDirection < 0 ? enemy.x + 1 : enemy.x + enemy.w - 5;
+  ctx.save();
+  ctx.fillStyle = "#ffd24a";
+  ctx.shadowColor = "#ff9f1c";
+  ctx.shadowBlur = 7;
+  ctx.fillRect(indicatorX, enemy.y + 8, 4, 5);
+  ctx.fillRect(indicatorX, enemy.y + enemy.h - 13, 4, 5);
+  ctx.restore();
+}
+
 function drawFrame(dt) {
   drawRoad(dt);
   coins.forEach(drawCoin);
   worldHazards.forEach(drawWorldHazard);
-  enemies.forEach(enemy => drawCar(enemy.x, enemy.y, enemy.w, enemy.h, enemy.color, "#a8ba7d", enemy.model, ctx, {}, enemy.id));
+  enemies.forEach(enemy => {
+    drawCar(enemy.x, enemy.y, enemy.w, enemy.h, enemy.color, "#a8ba7d", enemy.model, ctx, {}, enemy.id);
+    drawTrafficBlinker(enemy);
+  });
   if (player) drawCar(player.x, player.y, player.w, player.h, player.color, player.neon, player.model, ctx, player.customization, player.id);
 }
 
@@ -2567,6 +2720,8 @@ async function startGame() {
   runStart = performance.now();
   running = true;
   paused = false;
+  $("crash-explosion").classList.add("hidden");
+  $("crash-explosion").classList.remove("crash-active");
   startEngineAudio();
   $("pause-overlay").classList.add("hidden");
   showScreen("game");
@@ -2575,12 +2730,26 @@ async function startGame() {
   raf = requestAnimationFrame(loop);
 }
 
+function showCrashExplosion() {
+  const explosion = $("crash-explosion");
+  const roadRect = $("road-wrap").getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  explosion.style.left = `${canvasRect.left - roadRect.left + (player.x + player.w / 2) * canvasRect.width / W}px`;
+  explosion.style.top = `${canvasRect.top - roadRect.top + (player.y + player.h / 2) * canvasRect.height / H}px`;
+  explosion.classList.remove("hidden", "crash-active");
+  void explosion.offsetWidth;
+  explosion.classList.add("crash-active");
+  window.setTimeout(() => explosion.classList.add("hidden"), 650);
+}
+
 async function endGame() {
   if (!running) return;
+  showCrashExplosion();
   running = false;
   save.collisions = Number(save.collisions || 0) + 1;
   cancelAnimationFrame(raf);
   stopEngineAudio();
+  await new Promise(resolve => window.setTimeout(resolve, 520));
 
   const finalScore = Math.floor(score);
   const earned = runCoins;
@@ -2598,14 +2767,7 @@ async function endGame() {
 
   if (!session || !onlineRun) {
     save.coins += earned;
-    // Robijn is zeldzaam: één per 500 punten (offline-spiegel van de serverregel).
-    const earnedRubies = Math.floor(finalScore / 500);
-    if (earnedRubies > 0) {
-      save.rubies += earnedRubies;
-      $("submission-status").textContent =
-        `Demo-race: ${earned} munten en ${earnedRubies} robijn verdiend.`;
-    }
-    levelRewards = awardLocalXP(Math.max(1, Math.floor(finalScore / 10)));
+    levelRewards = awardLocalXP(finalScore);
     persistLocal();
     refreshHUD();
   } else if (onlineSubmission) {
@@ -2679,12 +2841,69 @@ function holdButton(id, key) {
 document.querySelectorAll("[data-screen]").forEach(button => {
   button.addEventListener("click", async () => {
     const screen = button.dataset.screen;
+    const levelInfoDialog = $("level-info-dialog");
+    if (levelInfoDialog.open) levelInfoDialog.close();
     if (screen === "shop") renderShop();
     if (screen === "garage") renderGarage();
     if (screen === "leaderboard") await loadLeaderboard();
     if (screen === "profile") renderProfile();
     showScreen(screen);
   });
+});
+
+$("level-info-button").addEventListener("click", () => $("level-info-dialog").showModal());
+$("level-info-close").addEventListener("click", () => $("level-info-dialog").close());
+$("setting-sound").addEventListener("click", toggleSound);
+$("setting-volume").addEventListener("input", event => changeVolume(event.target.value));
+$("setting-traffic").addEventListener("change", event => {
+  save.trafficLevel = Number(event.target.value) || 1;
+  persistLocal();
+  refreshSettings();
+});
+$("setting-reduced-motion").addEventListener("click", () => setReducedMotion(!save.reduceMotion));
+$("test-access-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const status = $("test-mode-status");
+  const submit = event.currentTarget.querySelector("[type=submit]");
+  status.textContent = "Toegangscode controleren...";
+  submit.disabled = true;
+  try {
+    const headers = { "Content-Type":"application/json" };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const response = await fetch(`${API_URL}/test/unlock`, {
+      method:"POST",
+      headers,
+      body:JSON.stringify({ code:$("test-access-code").value })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Testmodus kon niet worden ontgrendeld.");
+
+    const testBalance = result.profile || result;
+    save.coins = Number(testBalance.coins ?? 999999999);
+    save.rubies = Number(testBalance.rubies ?? 999999999);
+    persistLocal();
+    save.testMode = true;
+    persistLocal();
+    refreshHUD();
+    renderShop();
+    renderGarage();
+    refreshSettings();
+    status.textContent = result.localOnly
+      ? "Testmodus actief: testsaldo alleen op dit apparaat."
+      : "Testmodus actief: testsaldo is aan je account toegevoegd.";
+    $("test-access-code").value = "";
+  } catch (error) {
+    status.textContent = error.message === "Failed to fetch"
+      ? "Gameserver niet bereikbaar. Start de server en probeer opnieuw."
+      : error.message;
+  } finally {
+    submit.disabled = false;
+  }
+});
+$("test-mode-disable").addEventListener("click", () => {
+  save.testMode = false;
+  persistLocal();
+  refreshSettings();
 });
 
 document.querySelectorAll("[data-world]").forEach(button => {
@@ -2716,15 +2935,11 @@ $("profile-form").addEventListener("submit", async event => {
   const username = $("profile-username").value.trim();
   $("profile-status").textContent = "Profiel opslaan...";
   try {
-    const result = await api("/profile", {
-      method:"PATCH",
-      body:JSON.stringify({
-        username,
-        avatar:save.avatar,
-        avatarColor:save.avatarColor
-      })
+    await updateProfileOnline({
+      username,
+      avatar:save.avatar,
+      avatarColor:save.avatarColor
     });
-    applyProfile(result.profile);
     $("profile-status").textContent = "Profiel bijgewerkt.";
   } catch (error) {
     $("profile-status").textContent = error.message;
@@ -2805,6 +3020,7 @@ async function init() {
   refreshHUD();
   setAuthMode("login");
   refreshSoundButton();
+  refreshSettings();
   renderWorldOptions();
 
   if (!supabaseClient) {
